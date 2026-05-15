@@ -86,10 +86,11 @@ download_if_missing() {
   if command -v wget >/dev/null 2>&1; then
     wget \
       --continue \
-      --tries="${DOWNLOAD_TRIES:-8}" \
-      --connect-timeout="${DOWNLOAD_CONNECT_TIMEOUT:-30}" \
-      --read-timeout="${DOWNLOAD_READ_TIMEOUT:-120}" \
-      --waitretry="${DOWNLOAD_WAIT_RETRY:-10}" \
+      --inet4-only \
+      --tries="${DOWNLOAD_TRIES:-2}" \
+      --connect-timeout="${DOWNLOAD_CONNECT_TIMEOUT:-8}" \
+      --read-timeout="${DOWNLOAD_READ_TIMEOUT:-60}" \
+      --waitretry="${DOWNLOAD_WAIT_RETRY:-3}" \
       --retry-connrefused \
       "${url}" \
       -O "${dest}" || true
@@ -98,10 +99,11 @@ download_if_missing() {
   if ! has_expected_file "${dest}" "${min_bytes}" && command -v curl >/dev/null 2>&1; then
     curl \
       --location \
+      --ipv4 \
       --continue-at - \
-      --retry "${DOWNLOAD_TRIES:-8}" \
-      --retry-delay "${DOWNLOAD_WAIT_RETRY:-10}" \
-      --connect-timeout "${DOWNLOAD_CONNECT_TIMEOUT:-30}" \
+      --retry "${DOWNLOAD_TRIES:-2}" \
+      --retry-delay "${DOWNLOAD_WAIT_RETRY:-3}" \
+      --connect-timeout "${DOWNLOAD_CONNECT_TIMEOUT:-8}" \
       --output "${dest}" \
       "${url}" || true
   fi

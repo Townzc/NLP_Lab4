@@ -38,7 +38,8 @@ if [ ! -s "${TOKENIZER_MODEL}" ] && [ -s "${REPO_DIR}/vendor/checkpoint_download
   cp "${REPO_DIR}/vendor/checkpoint_download/llama/tokenizer.model" "${TOKENIZER_MODEL}"
 fi
 
-download_if_missing "${ASSET_BASE_URL}/llama_7b.ckpt" "${LLAMA_CKPT}" 13476850247 "${OBS_BASE_URI}/llama_7b.ckpt"
+download_if_missing "${ASSET_BASE_URL}/llama_7b.ckpt" "${LLAMA_CKPT}" 13476850247 "${OBS_BASE_URI}/llama_7b.ckpt" "obs.cn-north-4.myhuaweicloud.com" \
+  || download_if_missing "${MODELZOO_BASE_URL}/open_llama_7b.ckpt" "${LLAMA_CKPT}" 13476850247 "${MODELZOO_OBS_BASE_URI}/open_llama_7b.ckpt" "${MODELZOO_OBS_SERVER}"
 download_if_missing "${ASSET_BASE_URL}/tokenizer.model" "${TOKENIZER_MODEL}" 534194 "${OBS_BASE_URI}/tokenizer.model"
 
 copy_infer_templates

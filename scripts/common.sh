@@ -12,6 +12,10 @@ ASSET_BASE_URL="https://ascend-professional-construction-dataset.obs.cn-north-4.
 OBS_BASE_URI="${OBS_BASE_URI:-obs://ascend-professional-construction-dataset/黄贺阳迁移材料/hhy123/llama_lab}"
 MOX_OBS_SERVER="${MOX_OBS_SERVER:-obs.cn-north-4.myhuaweicloud.com}"
 
+MODELZOO_BASE_URL="https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/llama"
+MODELZOO_OBS_BASE_URI="obs://ascend-repo-modelzoo/XFormer_for_mindspore/llama"
+MODELZOO_OBS_SERVER="obs.cn-east-2.myhuaweicloud.com"
+
 CHECKPOINT_DIR="${MF_DIR}/checkpoint_download/llama"
 LLAMA_CKPT="${CHECKPOINT_DIR}/llama_7b.ckpt"
 TOKENIZER_MODEL="${CHECKPOINT_DIR}/tokenizer.model"
@@ -72,11 +76,13 @@ PY
 download_with_moxing() {
   local obs_uri="$1"
   local dest="$2"
+  local obs_server="${3:-${MOX_OBS_SERVER}}"
 
   if [ "${SKIP_MOX_DOWNLOAD:-0}" = "1" ]; then
     return 1
   fi
 
+  export MOX_OBS_SERVER="${obs_server}"
   python - "$obs_uri" "$dest" <<'PY'
 import os
 import sys
@@ -107,6 +113,7 @@ download_if_missing() {
   local dest="$2"
   local min_bytes="${3:-1}"
   local obs_uri="${4:-}"
+  local obs_server="${5:-${MOX_OBS_SERVER}}"
 
   if has_expected_file "${dest}" "${min_bytes}"; then
     echo "Found ${dest} ($(file_size "${dest}") bytes)"
@@ -115,7 +122,7 @@ download_if_missing() {
 
   mkdir -p "$(dirname "${dest}")"
   if [ -n "${obs_uri}" ]; then
-    download_with_moxing "${obs_uri}" "${dest}" || true
+    MOX_OBS_SERVER="${obs_server}" download_with_moxing "${obs_uri}" "${dest}" "${obs_server}" || true
     if has_expected_file "${dest}" "${min_bytes}"; then
       echo "Downloaded ${dest} with moxing ($(file_size "${dest}") bytes)"
       return
@@ -172,7 +179,7 @@ If ModelArts keeps timing out on this OBS URL, try one of these:
 
 The 7B checkpoint is about 12.6 GiB, so a flaky network can take several retries.
 EOF
-    exit 1
+    return 1
   fi
 }
 

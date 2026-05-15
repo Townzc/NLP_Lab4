@@ -10,6 +10,7 @@ RESULTS_DIR="${REPO_DIR}/results"
 LAB_ZIP_URL="https://ascend-professional-construction-dataset.obs.cn-north-4.myhuaweicloud.com:443/%E9%BB%84%E8%B4%BA%E9%98%B3%E8%BF%81%E7%A7%BB%E6%9D%90%E6%96%99/hhy123/llama_lab/llama_lab.zip"
 ASSET_BASE_URL="https://ascend-professional-construction-dataset.obs.cn-north-4.myhuaweicloud.com:443/%E9%BB%84%E8%B4%BA%E9%98%B3%E8%BF%81%E7%A7%BB%E6%9D%90%E6%96%99/hhy123/llama_lab"
 OBS_BASE_URI="${OBS_BASE_URI:-obs://ascend-professional-construction-dataset/黄贺阳迁移材料/hhy123/llama_lab}"
+MOX_OBS_SERVER="${MOX_OBS_SERVER:-obs.cn-north-4.myhuaweicloud.com}"
 
 CHECKPOINT_DIR="${MF_DIR}/checkpoint_download/llama"
 LLAMA_CKPT="${CHECKPOINT_DIR}/llama_7b.ckpt"
@@ -88,6 +89,10 @@ except Exception as exc:
     sys.exit(1)
 
 try:
+    server = os.environ.get("MOX_OBS_SERVER")
+    if server:
+        print("Moxing OBS server: {}".format(server), flush=True)
+        mox.file.set_auth(server=server)
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     print("Moxing copying {} -> {}".format(obs_uri, dest), flush=True)
     mox.file.copy(obs_uri, dest)

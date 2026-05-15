@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local lab documents and temporary Office locks
+*.docx
+~$*
+
+# Large ModelArts artifacts
+llama_lab/
+llama_lab.zip
+checkpoint_download/
+*.ckpt
+*.ckpt.lock
+*.mindrecord
+*.mindrecord.db
+*.log
+
+# Generated experiment outputs
+results/
+generated/

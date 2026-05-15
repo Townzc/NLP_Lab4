@@ -54,7 +54,7 @@ bash scripts/00_prepare_lab.sh
 DISABLE_PROXY_DOWNLOAD=1 bash scripts/00_prepare_lab.sh
 ```
 
-如果 ModelArts 到实验 OBS 桶一直不通，就在本地或其他网络下载文件后上传到脚本提示的精确路径，再重新运行 `scripts/00_prepare_lab.sh`。其中 `llama_7b.ckpt` 约 12.6 GiB，实验包 `llama_lab.zip` 约 45 MiB。
+仓库已经内置精简版实验包和 `tokenizer.model`，因此即使 HTTPS 访问实验 OBS 桶失败，也不需要手动上传 `llama_lab.zip`。如果 `llama_7b.ckpt` 仍然下载失败，优先尝试脚本中的 `moxing`/`obs://` 复制路径；若仍失败，再将 `llama_7b.ckpt` 上传到脚本提示的精确路径后重新运行 `scripts/00_prepare_lab.sh`。`llama_7b.ckpt` 约 12.6 GiB，建议用 OBS Browser 或 `obsutil` 分片续传上传到自己的 OBS 桶，再从 Notebook 拷贝到本地路径，不建议用浏览器直接上传到 JupyterLab。
 
 ## 3. 分步运行
 

@@ -9,6 +9,7 @@ RESULTS_DIR="${REPO_DIR}/results"
 
 LAB_ZIP_URL="https://ascend-professional-construction-dataset.obs.cn-north-4.myhuaweicloud.com:443/%E9%BB%84%E8%B4%BA%E9%98%B3%E8%BF%81%E7%A7%BB%E6%9D%90%E6%96%99/hhy123/llama_lab/llama_lab.zip"
 ASSET_BASE_URL="https://ascend-professional-construction-dataset.obs.cn-north-4.myhuaweicloud.com:443/%E9%BB%84%E8%B4%BA%E9%98%B3%E8%BF%81%E7%A7%BB%E6%9D%90%E6%96%99/hhy123/llama_lab"
+OBS_BASE_URI="${OBS_BASE_URI:-obs://ascend-professional-construction-dataset/黄贺阳迁移材料/hhy123/llama_lab}"
 
 CHECKPOINT_DIR="${MF_DIR}/checkpoint_download/llama"
 LLAMA_CKPT="${CHECKPOINT_DIR}/llama_7b.ckpt"
@@ -67,10 +68,40 @@ urllib.request.urlretrieve(url, dest)
 PY
 }
 
+download_with_moxing() {
+  local obs_uri="$1"
+  local dest="$2"
+
+  if [ "${SKIP_MOX_DOWNLOAD:-0}" = "1" ]; then
+    return 1
+  fi
+
+  python - "$obs_uri" "$dest" <<'PY'
+import os
+import sys
+
+obs_uri, dest = sys.argv[1], sys.argv[2]
+try:
+    import moxing as mox
+except Exception as exc:
+    print("moxing is unavailable: {}".format(exc), flush=True)
+    sys.exit(1)
+
+try:
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    print("Moxing copying {} -> {}".format(obs_uri, dest), flush=True)
+    mox.file.copy(obs_uri, dest)
+except Exception as exc:
+    print("moxing copy failed: {}".format(exc), flush=True)
+    sys.exit(1)
+PY
+}
+
 download_if_missing() {
   local url="$1"
   local dest="$2"
   local min_bytes="${3:-1}"
+  local obs_uri="${4:-}"
 
   if has_expected_file "${dest}" "${min_bytes}"; then
     echo "Found ${dest} ($(file_size "${dest}") bytes)"
@@ -78,6 +109,14 @@ download_if_missing() {
   fi
 
   mkdir -p "$(dirname "${dest}")"
+  if [ -n "${obs_uri}" ]; then
+    download_with_moxing "${obs_uri}" "${dest}" || true
+    if has_expected_file "${dest}" "${min_bytes}"; then
+      echo "Downloaded ${dest} with moxing ($(file_size "${dest}") bytes)"
+      return
+    fi
+  fi
+
   if [ -e "${dest}" ]; then
     echo "Resuming ${dest} ($(file_size "${dest}") bytes so far)"
   fi
@@ -121,7 +160,9 @@ If ModelArts keeps timing out on this OBS URL, try one of these:
   1. Re-run this script later; downloads resume from partial files.
   2. Run with direct download mode:
        DISABLE_PROXY_DOWNLOAD=1 bash scripts/00_prepare_lab.sh
-  3. Download the file outside ModelArts and upload it to the exact path above,
+  3. If this is a ModelArts notebook, try the OBS SDK path:
+       SKIP_MOX_DOWNLOAD=0 bash scripts/00_prepare_lab.sh
+  4. Download the file outside ModelArts and upload it to the exact path above,
      then re-run scripts/00_prepare_lab.sh.
 
 The 7B checkpoint is about 12.6 GiB, so a flaky network can take several retries.

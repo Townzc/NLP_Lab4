@@ -3,4 +3,6 @@
 *.md text eol=lf
 *.json text eol=lf
 *.txt text eol=lf
+*.model binary
+*.zip binary
 .gitignore text eol=lf

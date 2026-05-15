@@ -26,16 +26,106 @@ LORA_CONFIG="${MF_DIR}/configs/llama/${CONFIG_NAME}"
 
 mkdir -p "${RESULTS_DIR}"
 
+MODELARTS_NO_PROXY_DEFAULT="a.test.com,127.0.0.1,2.2.2.2,localhost,localhost.localdomain"
+export no_proxy="${no_proxy:-${MODELARTS_NO_PROXY_DEFAULT}}"
+export NO_PROXY="${NO_PROXY:-${no_proxy}}"
+
+if [ "${DISABLE_PROXY_DOWNLOAD:-0}" = "1" ]; then
+  unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+  export no_proxy="*"
+  export NO_PROXY="*"
+fi
+
+file_size() {
+  if [ -e "$1" ]; then
+    wc -c < "$1" | tr -d ' '
+  else
+    echo 0
+  fi
+}
+
+has_expected_file() {
+  local dest="$1"
+  local min_bytes="${2:-1}"
+  if [ "${min_bytes}" = "0" ]; then
+    [ -e "${dest}" ]
+    return
+  fi
+  [ -f "${dest}" ] && [ "$(file_size "${dest}")" -ge "${min_bytes}" ]
+}
+
+download_with_python() {
+  local url="$1"
+  local dest="$2"
+  python - "$url" "$dest" <<'PY'
+import sys
+import urllib.request
+
+url, dest = sys.argv[1], sys.argv[2]
+print("Python urllib downloading {}".format(url), flush=True)
+urllib.request.urlretrieve(url, dest)
+PY
+}
+
 download_if_missing() {
   local url="$1"
   local dest="$2"
-  if [ -s "${dest}" ]; then
-    echo "Found ${dest}"
+  local min_bytes="${3:-1}"
+
+  if has_expected_file "${dest}" "${min_bytes}"; then
+    echo "Found ${dest} ($(file_size "${dest}") bytes)"
     return
   fi
+
   mkdir -p "$(dirname "${dest}")"
+  if [ -e "${dest}" ]; then
+    echo "Resuming ${dest} ($(file_size "${dest}") bytes so far)"
+  fi
   echo "Downloading ${url}"
-  wget -c "${url}" -O "${dest}"
+
+  if command -v wget >/dev/null 2>&1; then
+    wget \
+      --continue \
+      --tries="${DOWNLOAD_TRIES:-8}" \
+      --connect-timeout="${DOWNLOAD_CONNECT_TIMEOUT:-30}" \
+      --read-timeout="${DOWNLOAD_READ_TIMEOUT:-120}" \
+      --waitretry="${DOWNLOAD_WAIT_RETRY:-10}" \
+      --retry-connrefused \
+      "${url}" \
+      -O "${dest}" || true
+  fi
+
+  if ! has_expected_file "${dest}" "${min_bytes}" && command -v curl >/dev/null 2>&1; then
+    curl \
+      --location \
+      --continue-at - \
+      --retry "${DOWNLOAD_TRIES:-8}" \
+      --retry-delay "${DOWNLOAD_WAIT_RETRY:-10}" \
+      --connect-timeout "${DOWNLOAD_CONNECT_TIMEOUT:-30}" \
+      --output "${dest}" \
+      "${url}" || true
+  fi
+
+  if ! has_expected_file "${dest}" "${min_bytes}"; then
+    download_with_python "${url}" "${dest}" || true
+  fi
+
+  if ! has_expected_file "${dest}" "${min_bytes}"; then
+    cat >&2 <<EOF
+Download failed or incomplete: ${dest}
+Current size: $(file_size "${dest}") bytes, expected at least ${min_bytes} bytes.
+
+If ModelArts keeps timing out on this OBS URL, try one of these:
+  1. Re-run this script later; downloads resume from partial files.
+  2. Run with direct download mode:
+       DISABLE_PROXY_DOWNLOAD=1 bash scripts/00_prepare_lab.sh
+  3. Download the file outside ModelArts and upload it to the exact path above,
+     then re-run scripts/00_prepare_lab.sh.
+
+The 7B checkpoint is about 12.6 GiB, so a flaky network can take several retries.
+EOF
+    exit 1
+  fi
 }
 
 require_lab() {

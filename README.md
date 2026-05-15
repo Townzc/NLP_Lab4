@@ -41,6 +41,21 @@ bash scripts/run_all.sh
 
 日志会保存到本仓库 `results/` 目录，后续写实验报告时可直接复制关键输出。
 
+如果下载 OBS 文件时遇到 `Connection timed out`，先停止脚本，然后拉取最新代码后重试：
+
+```bash
+git pull
+bash scripts/00_prepare_lab.sh
+```
+
+脚本会自动续传已下载的部分文件。若仍然超时，可以尝试强制直连下载：
+
+```bash
+DISABLE_PROXY_DOWNLOAD=1 bash scripts/00_prepare_lab.sh
+```
+
+如果 ModelArts 到实验 OBS 桶一直不通，就在本地或其他网络下载文件后上传到脚本提示的精确路径，再重新运行 `scripts/00_prepare_lab.sh`。其中 `llama_7b.ckpt` 约 12.6 GiB，实验包 `llama_lab.zip` 约 45 MiB。
+
 ## 3. 分步运行
 
 也可以逐步执行，便于截图和记录结果：
